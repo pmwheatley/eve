@@ -23,6 +23,7 @@ def resolve_document_version(document, resource, method, latest_doc=None):
     """
     resource_def = app.config['DOMAIN'][resource]
     version = app.config['VERSION']
+    new_version = app.config.get('NEW_VERSION', None)
     latest_version = app.config['LATEST_VERSION']
 
     if resource_def['versioning'] is True:
@@ -63,8 +64,12 @@ def resolve_document_version(document, resource, method, latest_doc=None):
                     'I need the latest document here!'
                 ))
             if version in latest_doc:
-                # all is right in the world :)
-                document[version] = latest_doc[version] + 1
+                if new_version is not None and new_version in document:
+                    # all is right in the world :)
+                    document[version] = document[new_version]
+                    document.pop(new_version)
+                else:
+                    document[version] = latest_doc[version] + 1
             else:
                 # if versioning was just turned on, then we will start
                 # versioning now. if the db was modified outside of Eve or

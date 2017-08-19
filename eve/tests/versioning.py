@@ -1377,3 +1377,58 @@ class TestVersioningWithCustomIdField(TestNormalVersioning):
         """ Make sure we can insert at least two versioning documents.
         """
         self.do_test_getitem(partial=False)
+
+
+class TestVersioningWithExplicitNewVersion(TestNormalVersioning):
+    def setUp(self):
+        super(TestVersioningWithExplicitNewVersion, self).setUp()
+        self.enableVersioning()
+        self.insertTestData()
+
+    def test_getitem(self):
+        """
+        """
+        self.do_test_getitem(partial=False)
+
+    def do_test_getitem(self, partial):
+        self.app.config['NEW_VERSION'] = '_new_version'
+        self.app.config['DOMAIN']['contacts']['schema']['_new_version'] = {'type': 'integer'}
+        item = self.item_change
+        item['_new_version'] = 7
+
+        # put a second version
+        response, status = self.put(self.item_id_url, data=item,
+                                    headers=[('If-Match', self.item_etag)])
+        self.assertGoodPutPatch(response, status)
+
+        if partial is True:
+            # build expected response since the state of version 1 will change
+            version_1 = copy.copy(self.item)
+            version_1[self.unversioned_field] = \
+                self.item_change[self.unversioned_field]
+        else:
+            version_1 = self.item
+
+        # check the get of the first version
+        response, status = self.get(self.known_resource, item=self.item_id,
+                                    query='?version=1')
+        self.assert200(status)
+        self.assertDocumentVersionFields(response, 1, 7)
+        self.assertEqualFields(version_1, response, self.fields)
+        links = response['_links']
+        self.assertHateoasLinks(links, 1)
+
+        # check the get of the second version
+        response, status = self.get(self.known_resource, item=self.item_id,
+                                    query='?version=7')
+        self.assert200(status)
+        self.assertDocumentVersionFields(response, 7)
+        self.assertEqualFields(self.item_change, response, self.fields)
+        links = response['_links']
+        self.assertHateoasLinks(links, 7)
+
+        # check the get without version specified and make sure it is version 7
+        response, status = self.get(self.known_resource, item=self.item_id)
+        self.assert200(status)
+        self.assertDocumentVersionFields(response, 7)
+        self.assertEqualFields(self.item_change, response, self.fields)
