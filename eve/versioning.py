@@ -59,21 +59,18 @@ def resolve_document_version(document, resource, method, latest_doc=None):
 
         if method == 'PUT' or method == 'PATCH' or \
                 (method == 'DELETE' and resource_def['soft_delete'] is True):
-            if not latest_doc:
-                abort(500, description=debug_error_message(
-                    'I need the latest document here!'
-                ))
-            if version in latest_doc:
-                if new_version is not None and new_version in document:
-                    document[version] = document[new_version]
-                    document.pop(new_version)
-                else:
+
+            if new_version is not None and new_version in document:
+                document[version] = document[new_version]
+                document.pop(new_version)
+            else:
+                if not latest_doc:
+                    abort(500, description=debug_error_message(
+                        'I need the latest document here!'
+                    ))
+                if version in latest_doc:
                     # all is right in the world :)
                     document[version] = latest_doc[version] + 1
-            else:
-                if new_version is not None and new_version in document:
-                    document[version] = document[new_version]
-                    document.pop(new_version)
                 else:
                     # if versioning was just turned on, then we will start
                     # versioning now. if the db was modified outside of Eve or
