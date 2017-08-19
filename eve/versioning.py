@@ -65,17 +65,21 @@ def resolve_document_version(document, resource, method, latest_doc=None):
                 ))
             if version in latest_doc:
                 if new_version is not None and new_version in document:
-                    # all is right in the world :)
                     document[version] = document[new_version]
                     document.pop(new_version)
                 else:
+                    # all is right in the world :)
                     document[version] = latest_doc[version] + 1
             else:
-                # if versioning was just turned on, then we will start
-                # versioning now. if the db was modified outside of Eve or
-                # versioning was turned of for a while, version numbers will
-                # not be consistent! you have been warned
-                document[version] = 1
+                if new_version is not None and new_version in document:
+                    document[version] = document[new_version]
+                    document.pop(new_version)
+                else:
+                    # if versioning was just turned on, then we will start
+                    # versioning now. if the db was modified outside of Eve or
+                    # versioning was turned of for a while, version numbers will
+                    # not be consistent! you have been warned
+                    document[version] = 1
 
 
 def late_versioning_catch(document, resource):
