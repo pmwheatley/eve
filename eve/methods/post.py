@@ -271,6 +271,9 @@ def post_internal(resource, payl=None, skip_validation=False):
             result = marshal_write_response(result, resource)
             results.append(result)
 
+            if app.config.get('NEW_VERSION', None):
+                resolve_document_version(document, resource, 'POST')
+
         # insert versioning docs
         insert_versioning_documents(resource, documents)
 

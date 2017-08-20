@@ -1,5 +1,5 @@
 from flask import current_app as app, abort
-from eve.utils import config, debug_error_message, ParsedRequest
+from eve.utils import config, debug_error_message, parse_request, ParsedRequest
 from werkzeug.exceptions import BadRequestKeyError
 
 
@@ -55,7 +55,13 @@ def resolve_document_version(document, resource, method, latest_doc=None):
 
         if method == 'POST':
             # this one is easy! it is a new document
-            document[version] = 1
+            if new_version is not None and new_version in document:
+                document[version] = document[new_version]
+                document.pop(new_version)
+            elif latest_version in document:
+                document[version] = document[latest_version]
+            else:
+                document[version] = 1
 
         if method == 'PUT' or method == 'PATCH' or \
                 (method == 'DELETE' and resource_def['soft_delete'] is True):
@@ -89,6 +95,9 @@ def late_versioning_catch(document, resource):
 
     .. versionadded:: 0.4
     """
+    if app.config.get('NEW_VERSION', None):
+        return
+
     resource_def = app.config['DOMAIN'][resource]
     version = app.config['VERSION']
 
@@ -152,13 +161,21 @@ def insert_versioning_documents(resource, documents):
             if request_auth_value:
                 ver_doc[auth_field] = request_auth_value
 
-            # add document to the stack
-            versioned_documents.append(ver_doc)
+            if (document['_created'] != document['_updated']) and not document.get('_deleted', False):
+                try:
+                    get_old_document(resource, parse_request(resource), {_id: document[_id]}, document, document[version])
+                except:
+                    # add document to the stack
+                    versioned_documents.append(ver_doc)
+            else:
+                # add document to the stack
+                versioned_documents.append(ver_doc)
 
-        # bulk insert
-        source = resource_def['datasource']['source']
-        versionable_resource_name = source + app.config['VERSIONS']
-        app.data.insert(versionable_resource_name, versioned_documents)
+        if len(versioned_documents) > 0:
+            # bulk insert
+            source = resource_def['datasource']['source']
+            versionable_resource_name = source + app.config['VERSIONS']
+            app.data.insert(versionable_resource_name, versioned_documents)
 
 
 def versioned_fields(resource_def):
